@@ -2,7 +2,7 @@
 # Backend runs at :8000, frontend dev server at :5173 (CORS is locked to that origin).
 
 .PHONY: help install install-api data smoke train-sr train-colorize test \
-        backend frontend demo evaluate clean
+        backend serve frontend demo evaluate download clean
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -34,6 +34,12 @@ test:  ## Run the Python test suite (pipeline + API)
 
 backend:  ## Run the FastAPI backend (needs trained checkpoints)
 	uvicorn app:app --reload
+
+serve:  ## Bring up a working backend from scratch (auto-bootstraps checkpoints)
+	bash scripts/serve_backend.sh
+
+download:  ## Fetch Landsat-9 scenes (optional; needs USGS M2M credentials)
+	python scripts/download_landsat.py
 
 frontend:  ## Run the React dev server (separate terminal)
 	cd frontend && npm install && npm run dev

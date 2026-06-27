@@ -24,6 +24,7 @@ import pandas as pd
 
 from tir.data.make_synthetic import OPTICAL_BANDS, THERMAL_BAND, generate
 from tir.data.patchify import patchify_scene
+from tir.data.radiometric import apply_optical, apply_thermal, normalize_level
 from tir.utils.config import load_config
 from tir.utils.geo import (GeoRaster, percentile_stretch, read_raster,
                            resample_to_resolution, write_raster)
@@ -33,12 +34,18 @@ from tir.utils.seed import seed_everything
 LOG = get_logger("preprocess")
 
 
-def build_rgb(scene_dir: Path, stretch: bool, low: float, high: float) -> GeoRaster:
-    """Merge B2/B3/B4 -> 3-band RGB (R,G,B order for display)."""
+def build_rgb(scene_dir: Path, stretch: bool, low: float, high: float,
+              level: str = "none") -> GeoRaster:
+    """Merge B2/B3/B4 -> 3-band RGB (R,G,B order for display).
+
+    Optical bands are converted to reflectance per ``level`` before merging.
+    """
     bands = {b: read_raster(scene_dir / f"{b}.tif") for b in OPTICAL_BANDS}
     ref = bands["B4"]
-    # stack as (R=B4, G=B3, B=B2)
-    rgb = np.concatenate([bands["B4"].data, bands["B3"].data, bands["B2"].data], axis=0)
+    # stack as (R=B4, G=B3, B=B2), each converted to reflectance for the level
+    rgb = np.concatenate([apply_optical(bands["B4"].data, level),
+                          apply_optical(bands["B3"].data, level),
+                          apply_optical(bands["B2"].data, level)], axis=0)
     if stretch:
         rgb = percentile_stretch(rgb, low, high)
     return GeoRaster(rgb.astype(np.float32), ref.transform, ref.crs, ref.nodata)
@@ -82,6 +89,10 @@ def prepare(config_path: str | Path) -> Path:
     min_valid = float(cfg.get("min_valid_frac", 0.5))
     stretch = bool(cfg.get("rgb_stretch", True))
     low, high = cfg.get("stretch_low", 2.0), cfg.get("stretch_high", 98.0)
+    level = normalize_level(cfg.get("radiometric", {}).get("level", "none")
+                            if isinstance(cfg.get("radiometric"), dict) else "none")
+    if level != "none":
+        LOG.info("radiometric conversion: Collection-2 %s -> physical units", level)
 
     # Bootstrap synthetic data if no scenes present.
     scene_dirs = sorted([d for d in raw_dir.glob("scene_*") if d.is_dir()])
@@ -95,8 +106,9 @@ def prepare(config_path: str | Path) -> Path:
     all_rows: list[dict] = []
     for scene_dir in scene_dirs:
         sid = scene_dir.name
-        rgb30 = build_rgb(scene_dir, stretch, low, high)
+        rgb30 = build_rgb(scene_dir, stretch, low, high, level)
         tir30 = read_raster(scene_dir / f"{THERMAL_BAND}.tif")
+        tir30.data = apply_thermal(tir30.data, level)  # -> Kelvin for L1/L2
 
         rgb100 = resample_to_resolution(rgb30, f_hr, resampling)
         hr_tir100 = resample_to_resolution(tir30, f_hr, resampling)

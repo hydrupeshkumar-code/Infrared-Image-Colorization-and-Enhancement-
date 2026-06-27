@@ -35,6 +35,12 @@ app.add_middleware(
 
 store = JobStore(JOBS_DIR, CONFIG_PATH, seed=SEED)
 
+_missing = store.missing_checkpoints()
+if _missing:
+    LOG.warning("checkpoints not found: %s — train first (`make smoke` or "
+                "tir-train-sr / tir-train-colorize) before running inference.",
+                ", ".join(_missing))
+
 
 def _validate_geotiff(data: bytes) -> str | None:
     """Return an error string if the upload is not a single-band georeferenced
@@ -55,7 +61,9 @@ def _validate_geotiff(data: bytes) -> str | None:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok"}
+    missing = store.missing_checkpoints()
+    return {"status": "ok", "checkpoints_ready": not missing,
+            "missing_checkpoints": missing}
 
 
 @app.post("/infer", responses={200: {"model": InferResponse},

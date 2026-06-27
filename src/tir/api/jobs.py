@@ -20,6 +20,7 @@ from tir.api.previews import (compute_residual, render_previews,
                               residual_metrics_k)
 from tir.api.schemas import Artifacts, JobRecord, Metrics
 from tir.infer.pipeline import run as run_pipeline
+from tir.utils.config import load_config
 from tir.utils.geo import read_raster
 from tir.utils.logging import get_logger
 from tir.utils.seed import seed_everything
@@ -58,6 +59,19 @@ class JobStore:
         self._jobs: dict[str, JobState] = {}
         self._lock = threading.Lock()
         self._pool = ThreadPoolExecutor(max_workers=max_workers)
+
+    def missing_checkpoints(self) -> list[str]:
+        """Return configured checkpoint paths that do not exist on disk."""
+        try:
+            cfg = load_config(self.config_path)
+        except Exception:
+            return []
+        missing = []
+        for key in ("sr_checkpoint", "colorize_checkpoint"):
+            path = cfg.get(key)
+            if path and not Path(path).exists():
+                missing.append(path)
+        return missing
 
     # -- accessors -------------------------------------------------------- #
     def get(self, job_id: str) -> Optional[JobState]:
@@ -104,6 +118,14 @@ class JobStore:
             with job._lock:
                 job.status = "running"
             seed_everything(self.seed)
+
+            missing = self.missing_checkpoints()
+            if missing:
+                raise RuntimeError(
+                    "Model checkpoint(s) not found: " + ", ".join(missing) +
+                    ". Train first (e.g. `make smoke`, or tir-train-sr / "
+                    "tir-train-colorize), or point configs/infer.yaml at existing "
+                    "checkpoints.")
 
             # Reuse the pipeline's existing tiled + feathered-blend inference.
             result = run_pipeline(str(input_path), str(job.job_dir),

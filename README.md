@@ -78,12 +78,17 @@ pytest
 
 ## Using real Landsat-9 data
 
-See `src/tir/data/download.py` for the two supported routes (USGS
-EarthExplorer manual download, or the scriptable M2M API). Place each scene as
-`data/raw/scene_<id>/{B2,B3,B4,B10}.tif`, then run `tir-prepare-data`. L2
-surface-reflectance/temperature products are preferred; for L1 (DN) convert B10
-to at-sensor brightness temperature via
-`tir.losses.physics.dn_to_brightness_temperature`.
+See `src/tir/data/download.py` (or `python scripts/download_landsat.py` /
+`make download`) for the two supported routes (USGS EarthExplorer manual
+download, or the scriptable M2M API). Place each scene as
+`data/raw/scene_<id>/{B2,B3,B4,B10}.tif`.
+
+For **Collection-2 Level-2** products, set `radiometric.level: L2` in
+`configs/data.yaml` so the bands are converted to physical units automatically
+(SR_B* → reflectance, ST_B10 → Kelvin) — this is what makes the `sr_mean_bias_k`
+/ `sr_rmse_k` metrics true Kelvin. Use `L1` for Level-1 (B10 → brightness
+temperature), or `none` (default) if your bands are already physical. Then run
+`tir-prepare-data`.
 
 ---
 
@@ -196,16 +201,17 @@ A full-stack demo wraps the pipeline: a FastAPI backend (`app.py` →
 [`docs/api.md`](docs/api.md) for the full API reference.
 
 ```bash
-# 0. One-time: produce checkpoints the backend serves (or train for real)
-make smoke                                # runs scripts/run_smoke.sh on synthetic data
-
-# 1. Backend (reads checkpoint paths from configs/infer.yaml — never hardcoded)
+# 1. Backend — one command from a fresh clone (auto-bootstraps checkpoints via
+#    the synthetic smoke run if none exist), then serves on :8000 (docs at /docs)
 pip install -e ".[api]"
-uvicorn app:app --reload                  # http://localhost:8000  (docs at /docs)
+make serve                                # or: uvicorn app:app --reload (needs checkpoints)
 
 # 2. Frontend (separate terminal). Use localhost, NOT 127.0.0.1 (CORS).
 cd frontend && npm install && npm run dev # http://localhost:5173
 ```
+
+`GET /health` reports `checkpoints_ready`; if checkpoints are missing a job
+fails with a clear "train first" message instead of a stack trace.
 
 Shortcuts via the `Makefile`: `make smoke`, `make backend`, `make frontend`,
 `make test`, `make demo`.
