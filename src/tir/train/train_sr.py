@@ -103,10 +103,10 @@ def train(config_path: str, max_steps: int | None = None) -> Path:
             if max_steps and step >= max_steps:
                 break
         metrics = evaluate_sr(model, val_ld, device, val_ds)
-        metrics.update({"epoch": epoch, "step": step, "loss": float(loss)})
+        metrics.update({"epoch": epoch, "step": step, "loss": float(loss.detach())})
         metric_log.log(metrics)
         LOG.info("epoch %d | loss %.4f | PSNR %.2f SSIM %.3f | bias %.2fK RMSE %.2fK",
-                 epoch, float(loss), metrics["psnr"], metrics["ssim"],
+                 epoch, metrics["loss"], metrics["psnr"], metrics["ssim"],
                  metrics["mean_bias_K"], metrics["rmse_K"])
         if metrics["psnr"] > best_psnr:
             best_psnr = metrics["psnr"]

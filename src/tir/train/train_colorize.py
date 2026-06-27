@@ -107,10 +107,10 @@ def train(config_path: str, max_steps: int | None = None) -> Path:
 
         metrics = evaluate_colorize(gen, val_ld, device)
         metrics.update({"epoch": epoch, "step": step,
-                        "loss_g": float(loss_g), "loss_d": float(loss_d)})
+                        "loss_g": float(loss_g.detach()), "loss_d": float(loss_d.detach())})
         metric_log.log(metrics)
         LOG.info("epoch %d | G %.3f D %.3f | PSNR %.2f SSIM %.3f", epoch,
-                 float(loss_g), float(loss_d), metrics["psnr"], metrics["ssim"])
+                 metrics["loss_g"], metrics["loss_d"], metrics["psnr"], metrics["ssim"])
         if metrics["psnr"] > best:
             best = metrics["psnr"]
             torch.save({"model": gen.state_dict(), "cfg": dict(cfg["model"]),

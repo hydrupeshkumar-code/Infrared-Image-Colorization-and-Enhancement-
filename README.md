@@ -1,0 +1,191 @@
+# TIR Super-Resolution + Colorization (BAH-2026 PS10, SAC-ISRO)
+
+End-to-end, trainable deep-learning pipeline that takes a **single-channel
+Thermal-IR (TIR) image at 200 m** and produces:
+
+1. a **super-resolved TIR image at 100 m** (2× spatial SR), and
+2. a **realistically colorized RGB image at 100 m** (TIR → RGB translation),
+
+while preserving structural and spectral integrity and **avoiding
+hallucination** of features not supported by the input.
+
+> Problem statement: BAH-2026 **PS10** (SAC-ISRO).
+> Data-prep mirrors [jugal-sac/IR-colorization-BAH2026](https://github.com/jugal-sac/IR-colorization-BAH2026).
+
+---
+
+## Why this matters
+
+TIR bands (land-surface temperature, urban heat, water/vegetation thermal
+signatures) are vital for Earth observation but are low-resolution and hard to
+interpret as grayscale. This pipeline makes them **sharper** and **visually
+interpretable as RGB**, with guardrails so the outputs stay faithful to the
+physics of the input.
+
+## Resolution math (defines the training pairs)
+
+Source: Landsat-9 Collection-2 (B2/B3/B4 optical @30 m, B10 thermal delivered
+at 30 m). Per co-registered tile:
+
+| Product            | Built from           | Factor   | Role                |
+|--------------------|----------------------|----------|---------------------|
+| `RGB_100m`         | merge B2/B3/B4 → ×3.33| 30→100 m | colorization target |
+| `HR_TIR_100m`      | B10 → ×3.33          | 30→100 m | SR target (HR)      |
+| `LR_TIR_200m`      | B10 → ×6.67          | 30→200 m | SR input (LR)       |
+
+Net SR factor: **200 m → 100 m = 2×**. All three products share a top-left
+origin and CRS, so patches line up pixel-for-pixel.
+
+---
+
+## Install
+
+```bash
+pip install -e .          # or: pip install -r requirements.txt
+```
+
+PyTorch uses CUDA automatically when available (`device: auto` in the configs);
+otherwise everything runs on CPU.
+
+## Quickstart (runs offline on a synthetic sample)
+
+No Landsat download is required to exercise the pipeline: if `data/raw` has no
+scenes, a small **synthetic Landsat-like sample** is generated automatically.
+
+```bash
+# 1. Prepare data (synthetic fallback if data/raw is empty) -> patches + manifest.csv
+tir-prepare-data   --config configs/data.yaml
+
+# 2. Train the super-resolution stage (TIR 200m -> 100m)
+tir-train-sr       --config configs/sr.yaml          # add --max-steps 20 for a smoke run
+
+# 3. Train the colorization stage (TIR 100m -> RGB 100m)
+tir-train-colorize --config configs/colorize.yaml    # add --max-steps 20 for a smoke run
+
+# 4. Run the end-to-end pipeline on a 200m TIR GeoTIFF
+tir-infer --input data/interim/scene_00/lr_tir_200m.tif --out-dir out/scene_00
+
+# 5. Evaluate on the held-out test split (metrics + qualitative panels)
+tir-evaluate --config configs/infer.yaml
+
+# tests
+pytest
+```
+
+## Using real Landsat-9 data
+
+See `src/tir/data/download.py` for the two supported routes (USGS
+EarthExplorer manual download, or the scriptable M2M API). Place each scene as
+`data/raw/scene_<id>/{B2,B3,B4,B10}.tif`, then run `tir-prepare-data`. L2
+surface-reflectance/temperature products are preferred; for L1 (DN) convert B10
+to at-sensor brightness temperature via
+`tir.losses.physics.dn_to_brightness_temperature`.
+
+---
+
+## Architecture & loss rationale
+
+**Super-resolution** (`src/tir/models/sr_model.py`, swappable via `sr.yaml`):
+- `edsr` — fast residual CNN baseline (default).
+- `swinir` — compact SwinIR-style window-attention transformer.
+- Losses: **Charbonnier** (robust pixel fidelity) + optional VGG perceptual +
+  **physics downsample-consistency**. Adversarial weight is kept **low/zero**:
+  for TIR we prioritise radiometric fidelity over invented texture.
+
+**Colorization** (`src/tir/models/colorize_model.py`, swappable via
+`colorize.yaml`):
+- `pix2pix` — U-Net generator + PatchGAN discriminator (conditional GAN).
+- Losses: **L1 content** + **adversarial** (realism) + optional perceptual /
+  SSIM. Can train on the real 100 m HR TIR (`tir_source: hr`, clean ablation)
+  or on the upsampled LR TIR (`lr_up`, closer to the composed pipeline).
+
+**Inference** (`src/tir/infer/`): tiled with overlap + **feathered (cosine)
+blending** to remove seams; streamed tile-by-tile to bound memory; AMP/half
+option on CUDA; SR and colorization can run jointly or independently. Outputs
+are georeferenced GeoTIFFs with a correctly **scaled geotransform** for 100 m.
+
+## Physics-informed modeling (bonus)
+
+`src/tir/losses/physics.py`:
+- **Brightness temperature** — convert B10 DN → at-sensor BT (Kelvin) via the
+  Planck-based USGS relation, so SR fidelity is reported in physical units.
+- **Downsample-consistency loss** — downsampling the SR output by the SR factor
+  must reproduce the LR input (a cycle constraint that penalises invented
+  structure). Enabled by `physics_consistency` in `sr.yaml`.
+- Emissivity is assumed ≈1 (at-sensor BT); land-surface temperature would add
+  an emissivity correction. These constraints are where physics most directly
+  reduces hallucination.
+
+## Anti-hallucination guardrails
+
+- Fidelity-first losses; moderate/low adversarial weights.
+- Physics downsample-consistency constraint on the SR stage.
+- Every evaluation ships **side-by-side panels** (LR | SR | HR-GT | pred RGB |
+  ref RGB) and **residual maps** so reviewers can audit invented structure.
+- Valid CRS / scaled geotransform / nodata preserved on every raster (tested).
+- **Geographically-disjoint** train/val/test split (by scene) — no leakage.
+- Seeded, config-driven, pinned dependencies for reproducibility.
+
+### Visual-inspection checklist
+1. Does the SR TIR add edges/structures absent from the LR input? (check residual map)
+2. Is the SR mean-bias / RMSE small in Kelvin? (reported by `train-sr` / `evaluate`)
+3. Does the predicted RGB invent objects not implied by the thermal field?
+4. Are land/water/vegetation thermal–color relationships plausible and consistent?
+5. Any tiling seams in full-scene outputs? (should be removed by feather blending)
+
+---
+
+## Results
+
+Metrics on the held-out **test** split (`tir-evaluate` writes
+`out/eval/metrics.json` + panels). Reported on the synthetic sample with short
+smoke training; **re-run on real Landsat scenes with full training** to fill in
+production numbers and your hardware.
+
+| Metric                     | SR (TIR) | Colorization (RGB) |
+|----------------------------|----------|--------------------|
+| PSNR ↑                     | _run_    | _run_              |
+| SSIM ↑                     | _run_    | _run_              |
+| FID ↓                      | —        | _run_              |
+| SR mean-bias / RMSE (K)    | _run_    | —                  |
+| Inference time per tile    | mean ± std (stated hardware) |          |
+
+> FID needs Inception weights; it is skipped gracefully (reported as `nan`) in
+> offline environments.
+
+## Repo layout
+
+```
+configs/     data | sr | colorize | infer  (YAML, everything config-driven)
+src/tir/
+  data/      download, preprocess (band merge/resample), patchify, datasets, make_synthetic
+  models/    sr_model (edsr/swinir), colorize_model (pix2pix), blocks/
+  losses/    pixel, perceptual, adversarial, physics
+  train/     train_sr, train_colorize
+  eval/      metrics (PSNR/SSIM/FID), evaluate (panels + residuals)
+  infer/     pipeline, tile_io (overlap + feather blending)
+  utils/     geo (raster I/O), seed, logging, config, viz
+tests/       geo I/O round-trip, patch alignment, metrics/model shapes, e2e synthetic
+```
+
+## CLI reference
+
+| Command             | Purpose                                              |
+|---------------------|------------------------------------------------------|
+| `tir-prepare-data`  | raw/synthetic scenes → aligned patch pairs + manifest|
+| `tir-train-sr`      | train TIR super-resolution                           |
+| `tir-train-colorize`| train TIR→RGB colorization                           |
+| `tir-infer`         | 200 m TIR GeoTIFF → HR TIR + RGB GeoTIFFs            |
+| `tir-evaluate`      | PSNR/SSIM/FID + per-tile time + qualitative panels   |
+
+## Limitations
+
+- The shipped **synthetic** sample makes the pipeline runnable offline but is
+  not a substitute for real Landsat radiometry — colorization realism and FID
+  are only meaningful after training on real scenes.
+- Colorizing thermal → RGB is inherently ill-posed; the adversarial term can
+  still introduce plausible-but-unobserved color. Keep adversarial weight
+  moderate and always review residual maps / panels.
+- B10 is natively ~100 m (USGS resamples to 30 m); true sub-100 m thermal
+  detail is limited by the sensor, so SR sharpens rather than recovers new
+  thermal information.
