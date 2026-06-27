@@ -16,6 +16,11 @@ matplotlib>=3.7
 torchmetrics>=1.0
 pytorch-fid>=0.3.0
 
+# API
+fastapi>=0.110
+uvicorn[standard]>=0.27
+python-multipart>=0.0.9
+
 # Dev / test
 pytest>=7.4
 pandas>=2.0

@@ -178,6 +178,37 @@ tests/       geo I/O round-trip, patch alignment, metrics/model shapes, e2e synt
 | `tir-infer`         | 200 m TIR GeoTIFF → HR TIR + RGB GeoTIFFs            |
 | `tir-evaluate`      | PSNR/SSIM/FID + per-tile time + qualitative panels   |
 
+## Web demo — "ChaturVyuha" (FastAPI + React)
+
+A full-stack demo wraps the pipeline: a FastAPI backend (`app.py` →
+`src/tir/api/`) and a dark-themed React 18 + Vite + Tailwind frontend
+(`frontend/`) built around a faithfulness/anti-hallucination story.
+
+```bash
+# Backend (uses configs/infer.yaml for checkpoint paths; assumes trained ckpts)
+pip install -e ".[api]"
+uvicorn app:app --reload                 # http://localhost:8000
+
+# Frontend (separate terminal)
+cd frontend && npm install && npm run dev # http://localhost:5173
+```
+
+**API contract**
+
+| Endpoint | Behaviour |
+|----------|-----------|
+| `POST /infer` | multipart `file` = single-band georeferenced TIR GeoTIFF. Validates `count==1` + valid CRS/transform (rasterio) → **422 `{error}`** otherwise. Saves to a per-job temp dir, runs inference **off the event loop** (ThreadPoolExecutor), returns `{job_id}` immediately. |
+| `GET /jobs/{job_id}` | `{job_id, status, error, metrics, artifacts}`; **404** if unknown. `status` ∈ queued/running/done/failed. |
+| `GET /results/{job_id}/{artifact}` | streams a PNG/GeoTIFF (`image/png`/`image/tiff`); **404** if missing. |
+
+**Faithfulness by construction**
+- After SR + RGB are written, the backend computes **residual = SR − bilinear-upsampled LR** and renders four previews: input (inferno), SR (inferno, *same vmin/vmax as input*), RGB (as-is), residual (`RdBu_r`, symmetric, centered at 0).
+- `metrics`: `psnr_sr/ssim_sr/psnr_rgb/ssim_rgb` are **`null`** at inference (no HR ground truth — never fabricated); `sr_mean_bias_k`/`sr_rmse_k` are the residual's Kelvin mean/RMS, always available.
+- Outputs preserve CRS / scaled 100 m geotransform / nodata; inference reuses the pipeline's tiled + feathered-blend path (no reimplementation).
+- The frontend's hero before/after slider and the residual-audit panel + Kelvin-metric cards exist to let a reviewer verify the model **sharpens what's there and doesn't invent**. Backend base URL lives in one constant (`frontend/src/api.ts`).
+
+> The in-memory job store is fine for a demo but does **not** survive a backend restart.
+
 ## Limitations
 
 - The shipped **synthetic** sample makes the pipeline runnable offline but is
