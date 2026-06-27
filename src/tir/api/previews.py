@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import cv2
 import numpy as np
 
 import matplotlib
@@ -17,12 +18,15 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 
 def upsample_bilinear(arr: np.ndarray, out_hw: tuple[int, int]) -> np.ndarray:
-    """Bilinearly resize a (1,h,w) array to (1,H,W) without torch import cost."""
-    import torch
-    t = torch.from_numpy(np.ascontiguousarray(arr))[None].float()
-    up = torch.nn.functional.interpolate(t, size=out_hw, mode="bilinear",
-                                         align_corners=False)
-    return up[0].numpy()
+    """Bilinearly resize a (1,h,w) array to (1,H,W) using OpenCV (cv2.resize).
+
+    OpenCV is the project's CV backend for non-georeferenced array resampling
+    (rasterio handles the geo-aware resampling that must preserve transforms).
+    """
+    h, w = out_hw
+    resized = cv2.resize(arr[0].astype(np.float32), (w, h),
+                         interpolation=cv2.INTER_LINEAR)
+    return resized[None]
 
 
 def compute_residual(sr_tir: np.ndarray, lr_tir: np.ndarray) -> np.ndarray:

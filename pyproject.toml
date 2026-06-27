@@ -30,6 +30,7 @@ dev = ["pytest>=7.4", "httpx>=0.27"]
 api = ["fastapi>=0.110", "uvicorn[standard]>=0.27", "python-multipart>=0.0.9"]
 
 [project.scripts]
+tir-stack-check   = "tir.utils.stack:main"
 tir-make-sample   = "tir.data.make_synthetic:main"
 tir-prepare-data  = "tir.data.preprocess:main"
 tir-train-sr      = "tir.train.train_sr:main"

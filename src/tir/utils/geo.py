@@ -41,6 +41,21 @@ def _require_rasterio() -> None:
         )
 
 
+def gdal_version() -> str:
+    """Return the GDAL version that backs rasterio.
+
+    Rasterio embeds GDAL (it is GDAL's Python interface for this project), so
+    the PS10-required GDAL engine is always present wherever rasterio is.
+    """
+    if not _HAS_RASTERIO:
+        return "unavailable"
+    try:
+        from osgeo import gdal  # standalone bindings, if installed
+        return gdal.__version__
+    except Exception:
+        return getattr(rasterio, "__gdal_version__", "unknown")
+
+
 @dataclass
 class GeoRaster:
     """A raster + its georeferencing metadata.

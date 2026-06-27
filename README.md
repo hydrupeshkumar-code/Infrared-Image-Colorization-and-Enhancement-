@@ -42,10 +42,14 @@ origin and CRS, so patches line up pixel-for-pixel.
 
 ```bash
 pip install -e .          # or: pip install -r requirements.txt
+tir-stack-check           # confirm the PS10 stack: GDAL / Rasterio / tifffile / OpenCV
 ```
 
 PyTorch uses CUDA automatically when available (`device: auto` in the configs);
 otherwise everything runs on CPU.
+
+> **Conformance to the official PS10 problem statement** is mapped slide-by-slide
+> in [`docs/ps10-conformance.md`](docs/ps10-conformance.md).
 
 ## Quickstart (runs offline on a synthetic sample)
 
