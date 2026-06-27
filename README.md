@@ -156,7 +156,10 @@ production numbers and your hardware.
 ## Repo layout
 
 ```
+app.py       FastAPI entry point (uvicorn app:app)
+Makefile     install / smoke / test / backend / frontend / demo targets
 configs/     data | sr | colorize | infer  (YAML, everything config-driven)
+docs/        architecture.md (data flow) · api.md (API reference)
 src/tir/
   data/      download, preprocess (band merge/resample), patchify, datasets, make_synthetic
   models/    sr_model (edsr/swinir), colorize_model (pix2pix), blocks/
@@ -164,8 +167,10 @@ src/tir/
   train/     train_sr, train_colorize
   eval/      metrics (PSNR/SSIM/FID), evaluate (panels + residuals)
   infer/     pipeline, tile_io (overlap + feather blending)
+  api/       schemas, jobs (ThreadPoolExecutor store), previews (residual + PNGs), server
   utils/     geo (raster I/O), seed, logging, config, viz
-tests/       geo I/O round-trip, patch alignment, metrics/model shapes, e2e synthetic
+frontend/    React 18 + TS + Vite + Tailwind app (see frontend/README.md)
+tests/       geo I/O, patch alignment, metric/model shapes, e2e synthetic, API
 ```
 
 ## CLI reference
@@ -182,16 +187,24 @@ tests/       geo I/O round-trip, patch alignment, metrics/model shapes, e2e synt
 
 A full-stack demo wraps the pipeline: a FastAPI backend (`app.py` →
 `src/tir/api/`) and a dark-themed React 18 + Vite + Tailwind frontend
-(`frontend/`) built around a faithfulness/anti-hallucination story.
+(`frontend/`) built around a faithfulness/anti-hallucination story. See
+[`docs/architecture.md`](docs/architecture.md) for the data flow and
+[`docs/api.md`](docs/api.md) for the full API reference.
 
 ```bash
-# Backend (uses configs/infer.yaml for checkpoint paths; assumes trained ckpts)
-pip install -e ".[api]"
-uvicorn app:app --reload                 # http://localhost:8000
+# 0. One-time: produce checkpoints the backend serves (or train for real)
+make smoke                                # runs scripts/run_smoke.sh on synthetic data
 
-# Frontend (separate terminal)
+# 1. Backend (reads checkpoint paths from configs/infer.yaml — never hardcoded)
+pip install -e ".[api]"
+uvicorn app:app --reload                  # http://localhost:8000  (docs at /docs)
+
+# 2. Frontend (separate terminal). Use localhost, NOT 127.0.0.1 (CORS).
 cd frontend && npm install && npm run dev # http://localhost:5173
 ```
+
+Shortcuts via the `Makefile`: `make smoke`, `make backend`, `make frontend`,
+`make test`, `make demo`.
 
 **API contract**
 
