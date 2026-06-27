@@ -1,0 +1,35 @@
+# Phase 3 colorization config (TIR 100 m -> RGB 100 m).
+seed: 42
+manifest: data/processed/manifest.csv
+out_dir: checkpoints/colorize
+device: auto
+
+# Conditioning TIR source: hr (real 100 m, ablation) | lr_up (matches pipeline)
+tir_source: hr
+
+# Model (swappable): pix2pix
+model:
+  name: pix2pix
+  ngf: 64               # generator base width (U-Net)
+  ndf: 64               # discriminator base width (PatchGAN)
+  n_down: 5             # U-Net depth (64px patch -> 2x2 bottleneck)
+
+tir_mean: auto
+tir_std: auto
+
+# Losses.
+loss:
+  l1: 100.0             # content (pix2pix default weighting)
+  adversarial: 1.0      # realism
+  perceptual: 0.0       # VGG (optional upgrade)
+  ssim: 0.0             # structural term (optional)
+
+train:
+  epochs: 100
+  batch_size: 8
+  lr: 0.0002
+  beta1: 0.5
+  num_workers: 2
+  augment: true
+  val_every: 1
+  max_steps: null

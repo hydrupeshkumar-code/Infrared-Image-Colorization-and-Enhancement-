@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tir-sr-colorize"
+version = "0.1.0"
+description = "Thermal-IR super-resolution (200m->100m) and TIR->RGB colorization for Landsat-9 (BAH-2026 PS10)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.24,<3.0",
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "pyyaml>=6.0",
+    "tqdm>=4.65",
+    "rasterio>=1.3",
+    "tifffile>=2023.7.10",
+    "opencv-python>=4.7",
+    "scikit-image>=0.21",
+    "matplotlib>=3.7",
+    "torchmetrics>=1.0",
+    "pytorch-fid>=0.3.0",
+    "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[project.scripts]
+tir-make-sample   = "tir.data.make_synthetic:main"
+tir-prepare-data  = "tir.data.preprocess:main"
+tir-train-sr      = "tir.train.train_sr:main"
+tir-train-colorize = "tir.train.train_colorize:main"
+tir-infer         = "tir.infer.pipeline:main"
+tir-evaluate      = "tir.eval.evaluate:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

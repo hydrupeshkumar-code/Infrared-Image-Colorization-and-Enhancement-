@@ -1,0 +1,32 @@
+# Data (large rasters) — keep folder structure via .gitkeep, ignore contents
+data/raw/*
+data/interim/*
+data/processed/*
+!data/**/.gitkeep
+# but keep the tiny synthetic sample so the pipeline is runnable out of the box
+!data/sample/
+!data/sample/**
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# Training artifacts
+checkpoints/
+runs/
+out/
+*.ckpt
+*.pth
+wandb/
+lightning_logs/
+
+# OS
+.DS_Store

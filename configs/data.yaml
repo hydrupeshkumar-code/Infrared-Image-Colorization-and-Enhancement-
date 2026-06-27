@@ -1,0 +1,29 @@
+# Phase 1 data pipeline config.
+seed: 42
+
+raw_dir: data/raw            # scene_XX/{B2,B3,B4,B10}.tif (synthetic if empty)
+interim_dir: data/interim    # merged RGB + resampled rasters
+processed_dir: data/processed  # patch pairs + manifest.csv
+
+# Resolution math (30 m USGS-resampled source).
+sr_factor: 2          # 200 m -> 100 m
+downscale_hr: 3.33    # 30 m -> 100 m  (HR target / RGB target)
+downscale_lr: 6.67    # 30 m -> 200 m  (LR input)
+resampling: average   # area-weighted downsampling; preserves radiometry
+
+# RGB construction.
+rgb_stretch: true     # 2-98% stretch for visualization-grade RGB target
+stretch_low: 2.0
+stretch_high: 98.0
+
+# Patching.
+hr_patch: 64          # HR/RGB patch size @100 m (LR patch = 64/sr_factor = 32)
+stride: 48            # overlapping tiles -> more patches per scene
+min_valid_frac: 0.5   # skip patches with too much nodata/cloud
+
+# Geographically-disjoint scene-level split (no leakage).
+split: [0.5, 0.25, 0.25]  # train / val / test by whole scene
+
+# Synthetic sample fallback (used only if raw_dir has no scenes).
+synthetic_scenes: 4
+synthetic_size: 600

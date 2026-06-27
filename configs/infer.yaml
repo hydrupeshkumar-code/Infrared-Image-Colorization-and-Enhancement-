@@ -1,0 +1,23 @@
+# Phase 4/5 inference + evaluation config.
+seed: 42
+manifest: data/processed/manifest.csv
+device: auto
+
+sr_checkpoint: checkpoints/sr/best.pth
+colorize_checkpoint: checkpoints/colorize/best.pth
+
+# Tiled inference for arbitrary-size scenes.
+tile:
+  size: 64              # LR tile size (HR tile = size * sr_factor)
+  overlap: 8            # LR overlap; feathered blending removes seams
+  amp: false           # half precision on CUDA for speed
+  batch_size: 4
+
+stages: both           # both | sr | colorize
+
+# Evaluation.
+eval:
+  split: test
+  out_dir: out/eval
+  num_panels: 8         # qualitative LR|SR|HR-GT|pred RGB|ref RGB panels
+  fid: true             # compute FID (needs enough samples)
