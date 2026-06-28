@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  asset, getJob, InferError, postInfer,
-  type JobRecord, type JobStatus,
+  asset, getHealth, getJob, InferError, postInfer,
+  type HealthStatus, type JobRecord, type JobStatus,
 } from "./api";
 import Nav from "./components/Nav";
 import Hero from "./components/Hero";
@@ -16,9 +16,21 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [record, setRecord] = useState<JobRecord | null>(null);
+  const [health, setHealth] = useState<HealthStatus | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const openPicker = () => fileInputRef.current?.click();
+
+  // Probe backend readiness once on mount so we can warn before any upload.
+  useEffect(() => {
+    let active = true;
+    getHealth()
+      .then((h) => active && setHealth(h))
+      .catch(() => active && setHealth(null));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Poll the job until it reaches a terminal state. React state only.
   useEffect(() => {
@@ -68,6 +80,7 @@ export default function App() {
   const done = record?.status === "done" && record.artifacts;
   const beforeSrc = done ? asset(record!.artifacts!.input_preview_png) : PLACEHOLDER_INPUT;
   const afterSrc = done ? asset(record!.artifacts!.rgb_preview_png) : PLACEHOLDER_OUTPUT;
+  const notReady = health != null && !health.checkpoints_ready;
 
   return (
     <div
@@ -92,6 +105,7 @@ export default function App() {
         onUpload={openPicker}
         status={status}
         error={error}
+        notReady={notReady}
       />
 
       {done && (

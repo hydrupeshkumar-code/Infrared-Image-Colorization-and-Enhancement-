@@ -10,10 +10,11 @@ interface Props {
   onUpload: () => void;
   status: JobStatus | "idle";
   error: string | null;
+  notReady?: boolean;
 }
 
 export default function Hero({
-  beforeSrc, afterSrc, pct, onPct, onUpload, status, error,
+  beforeSrc, afterSrc, pct, onPct, onUpload, status, error, notReady = false,
 }: Props) {
   const busy = status === "queued" || status === "running";
 
@@ -68,12 +69,23 @@ export default function Hero({
 
         <button
           onClick={onUpload}
-          disabled={busy}
+          disabled={busy || notReady}
           className="bg-[#e8702a] hover:bg-[#d2611f] text-white text-sm font-medium px-7 py-3 rounded-full transition-all hover:scale-[1.03] active:scale-95 hover:shadow-lg hover:shadow-[#e8702a]/30 disabled:opacity-60 disabled:hover:scale-100 flex items-center gap-2"
         >
           {busy && <Loader2 size={16} className="spin" />}
           {busy ? (status === "queued" ? "Queued…" : "Running…") : "Upload & Run"}
         </button>
+
+        {notReady && (
+          <div className="flex items-start gap-2 text-xs text-amber-200 bg-amber-900/40 border border-amber-500/40 rounded-lg px-3 py-2 max-w-full">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <span className="break-words">
+              Backend has no trained model checkpoints yet — run{" "}
+              <code className="font-mono">make serve</code> (or{" "}
+              <code className="font-mono">make smoke</code>) before uploading.
+            </span>
+          </div>
+        )}
 
         {status === "failed" && error && (
           <div className="flex items-start gap-2 text-xs text-red-200 bg-red-900/40 border border-red-500/40 rounded-lg px-3 py-2 max-w-full">

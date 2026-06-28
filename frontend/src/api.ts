@@ -33,6 +33,20 @@ export interface JobRecord {
 export const asset = (url: string): string =>
   url.startsWith("http") ? url : `${API_BASE}${url}`;
 
+export interface HealthStatus {
+  status: string;
+  checkpoints_ready: boolean;
+  missing_checkpoints: string[];
+}
+
+/** GET /health — reports whether the backend's model checkpoints are present.
+ * Lets the UI warn upfront instead of failing a job after upload. */
+export async function getHealth(): Promise<HealthStatus> {
+  const res = await fetch(`${API_BASE}/health`);
+  if (!res.ok) throw new Error(`Health check failed (HTTP ${res.status}).`);
+  return (await res.json()) as HealthStatus;
+}
+
 export class InferError extends Error {}
 
 /** POST a single-band TIR GeoTIFF; returns the job_id. Throws InferError on 422. */
