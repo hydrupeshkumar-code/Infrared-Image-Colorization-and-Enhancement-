@@ -178,7 +178,7 @@ src/tir/
   infer/     pipeline, tile_io (overlap + feather blending)
   api/       schemas, jobs (ThreadPoolExecutor store), previews (residual + PNGs), server
   utils/     geo (raster I/O), seed, logging, config, viz
-frontend/    Vite app: standalone landing (/) + React 18 demo (/app/) (see frontend/README.md)
+frontend/    ChaturVyuha standalone landing site, served by Vite (see frontend/README.md)
 tests/       geo I/O, patch alignment, metric/model shapes, e2e synthetic, API
 ```
 
@@ -195,8 +195,8 @@ tests/       geo I/O, patch alignment, metric/model shapes, e2e synthetic, API
 ## Web demo — "ChaturVyuha" (FastAPI + React)
 
 A full-stack demo wraps the pipeline: a FastAPI backend (`app.py` →
-`src/tir/api/`) and a dark-themed Vite frontend (`frontend/`) — the ChaturVyuha
-standalone landing page plus a React 18 + Tailwind demo app — built around a
+`src/tir/api/`) and a dark-themed frontend (`frontend/`) — the ChaturVyuha
+standalone landing site, served by Vite — built around a
 faithfulness/anti-hallucination story. See
 [`docs/architecture.md`](docs/architecture.md) for the data flow and
 [`docs/api.md`](docs/api.md) for the full API reference.
@@ -211,12 +211,11 @@ make serve                                # or: uvicorn app:app --reload (needs 
 cd frontend && npm install && npm run dev # http://localhost:5173
 ```
 
-The dev server serves **two** frontends: the **ChaturVyuha standalone landing**
-at `/` (cinematic hero + a working upload wired to the backend) and the **React
-demo** at `/app/`. Both talk to the same FastAPI backend. See
+The dev server serves the **ChaturVyuha standalone landing** at `/` (cinematic
+hero + a working upload wired to the backend). See
 [`frontend/README.md`](frontend/README.md).
 
-`GET /health` reports `checkpoints_ready` — both frontends probe it and warn up
+`GET /health` reports `checkpoints_ready` — the landing probes it and warns up
 front if checkpoints are missing, instead of failing only after an upload. (A job
 that runs without checkpoints still fails with a clear "train first" message
 rather than a stack trace.)
@@ -236,7 +235,7 @@ Shortcuts via the `Makefile`: `make smoke`, `make backend`, `make frontend`,
 - After SR + RGB are written, the backend computes **residual = SR − bilinear-upsampled LR** and renders four previews: input (inferno), SR (inferno, *same vmin/vmax as input*), RGB (as-is), residual (`RdBu_r`, symmetric, centered at 0).
 - `metrics`: `psnr_sr/ssim_sr/psnr_rgb/ssim_rgb` are **`null`** at inference (no HR ground truth — never fabricated); `sr_mean_bias_k`/`sr_rmse_k` are the residual's Kelvin mean/RMS, always available.
 - Outputs preserve CRS / scaled 100 m geotransform / nodata; inference reuses the pipeline's tiled + feathered-blend path (no reimplementation).
-- The frontend's residual-audit panel + Kelvin-metric cards exist to let a reviewer verify the model **sharpens what's there and doesn't invent**. Backend base URL lives in one constant per frontend (`frontend/src/api.ts` and the `API_BASE` variable in the `TIR-BACKEND-WIRING` script in `frontend/public/chaturvyuha-site/ChaturVyuha (standalone).html`).
+- The frontend's residual-audit panel + Kelvin-metric cards exist to let a reviewer verify the model **sharpens what's there and doesn't invent**. Backend base URL lives in one constant (the `API_BASE` variable in the `TIR-BACKEND-WIRING` script in `frontend/public/chaturvyuha-site/ChaturVyuha (standalone).html`).
 
 > The in-memory job store is fine for a demo but does **not** survive a backend restart.
 

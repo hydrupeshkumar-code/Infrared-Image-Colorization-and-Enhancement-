@@ -1,7 +1,7 @@
 # Architecture & data flow
 
 How the three layers of this project connect: the **pipeline** (training +
-inference), the **FastAPI backend**, and the **React frontend**.
+inference), the **FastAPI backend**, and the **ChaturVyuha standalone frontend**.
 
 ```
  Landsat-9 scenes                 ┌──────────────────────── tir (Python package) ────────────────────────┐
@@ -27,8 +27,8 @@ inference), the **FastAPI backend**, and the **React frontend**.
                                   │  metrics: psnr/ssim = null (no GT), sr_*_k from residual (Kelvin)       │
                                   └───────────────────────────────────────────────────────────────────────┘
                                                                        ▲
-   React (Vite + Tailwind, frontend/) ───────────────────────────────┘
-     api.ts (one base-URL const) · Hero + BeforeAfterSlider · ResultsDashboard (residual audit + Kelvin cards)
+   ChaturVyuha standalone site (served by Vite, frontend/) ──────────┘
+     TIR-BACKEND-WIRING script (one base-URL const) · hero + before/after slider · residual audit + Kelvin cards
 ```
 
 ## Resolution math (the contract that links every stage)
@@ -63,7 +63,7 @@ geotransform scaled for 100 m.
 |------|----------------|
 | `src/tir/{data,models,losses,train,eval,infer,utils}` | the ML pipeline |
 | `src/tir/api/` + `app.py` | FastAPI backend (`schemas`, `jobs`, `previews`, `server`) |
-| `frontend/src/` | React app (`api.ts`, `components/`, `App.tsx`) |
+| `frontend/public/chaturvyuha-site/` | the standalone landing site (HTML bundle + `support.js`) |
 | `configs/` | `data` · `sr` · `colorize` · `infer` (checkpoint paths) |
 | `tests/` | pipeline + API tests |
 | `docs/` | this file + `api.md` |

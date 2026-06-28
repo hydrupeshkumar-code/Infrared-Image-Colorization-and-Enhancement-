@@ -1,18 +1,7 @@
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 
-// Two entry points (paths are relative to the Vite project root):
-//   /          -> index.html, redirects to the 3D landing in public/chaturvyuha-site/
-//   /app/      -> app/index.html, the React upload/results demo (src/main.tsx)
+// The landing is a static, self-contained site in public/chaturvyuha-site/.
+// index.html just redirects to it; Vite only needs to serve / copy public/.
 export default defineConfig({
-  plugins: [react()],
   server: { port: 5173 },
-  build: {
-    rollupOptions: {
-      input: {
-        main: "index.html",
-        app: "app/index.html",
-      },
-    },
-  },
 });

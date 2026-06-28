@@ -41,7 +41,7 @@ serve:  ## Bring up a working backend from scratch (auto-bootstraps checkpoints)
 download:  ## Fetch Landsat-9 scenes (optional; needs USGS M2M credentials)
 	python scripts/download_landsat.py
 
-frontend:  ## Run the React dev server (separate terminal)
+frontend:  ## Run the frontend dev server — ChaturVyuha landing (separate terminal)
 	cd frontend && npm install && npm run dev
 
 demo: ## Reminder of the two commands needed for the full web demo
