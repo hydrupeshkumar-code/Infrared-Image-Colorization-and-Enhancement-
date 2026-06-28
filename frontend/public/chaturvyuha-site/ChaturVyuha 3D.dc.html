@@ -296,6 +296,9 @@
         <span style="color:rgba(255,255,255,0.25);">·</span>
         <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:rgba(255,255,255,0.4);">GET /results/{id}/{artifact}</span>
       </div>
+
+      <!-- live results: populated by the DCLogic component after a job completes -->
+      <div ref="{{ setResults }}" style="display:none;"></div>
     </div>
   </section>
 
@@ -313,6 +316,10 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;100%&quot;}}">
 class Component extends DCLogic {
+  // Single place to point the page at the FastAPI backend (matches the React
+  // app's src/api.ts and the backend's CORS allow-list for :5173).
+  API_BASE = 'http://localhost:8000';
+
   // ----- ref setters (stable) -----
   setCanvas = (el) => { this.canvas = el; };
   setSlider = (el) => { this.slider = el; };
@@ -324,6 +331,7 @@ class Component extends DCLogic {
   setFileName = (el) => { this.fileName = el; };
   setBias = (el) => { this.biasEl = el; };
   setRmse = (el) => { this.rmseEl = el; };
+  setResults = (el) => { this.results = el; };
   setHeroTag = (el) => { this.heroTag = el; };
   setHeroTitle = (el) => { this.heroTitle = el; };
   setHeroSub = (el) => { this.heroSub = el; };
@@ -339,7 +347,130 @@ class Component extends DCLogic {
   onPickFile = () => { if (this.input) this.input.click(); };
   onFileChange = (e) => {
     const f = e.target && e.target.files && e.target.files[0];
-    if (f && this.fileName) this.fileName.textContent = '✓ ' + f.name + ' — ready (connect the FastAPI backend to run)';
+    if (f) this._runFile(f);
+    if (e.target) e.target.value = ''; // allow re-selecting the same file
+  };
+
+  // ----- backend wiring: POST /infer -> poll /jobs -> render results -----
+  _asset = (url) => (!url ? '' : (url.startsWith('http') ? url : this.API_BASE + url));
+
+  _setStatus = (msg, tone) => {
+    if (!this.fileName) return;
+    this.fileName.textContent = msg;
+    this.fileName.style.color = tone === 'error' ? '#ff8f8f'
+      : tone === 'busy' ? '#ffb877' : '#7fffa6';
+  };
+
+  _checkHealth = async () => {
+    try {
+      const r = await fetch(this.API_BASE + '/health');
+      if (!r.ok) return;
+      const h = await r.json();
+      if (h && h.checkpoints_ready === false) {
+        this._setStatus('⚠ Backend has no trained checkpoints yet — run `make serve` (or `make smoke`) before uploading.', 'error');
+      }
+    } catch (e) { /* backend not up yet; surfaced on first upload attempt */ }
+  };
+
+  _runFile = async (file) => {
+    if (this._busy) return;
+    if (!/\.tiff?$/i.test(file.name || '')) {
+      this._setStatus('✗ Please choose a single-band GeoTIFF (.tif / .tiff).', 'error');
+      return;
+    }
+    this._busy = true;
+    if (this.results) this.results.style.display = 'none';
+    this._setStatus('↑ Uploading ' + file.name + ' …', 'busy');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(this.API_BASE + '/infer', { method: 'POST', body: form });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        this._setStatus('✗ ' + (data.error || ('Upload failed (HTTP ' + res.status + ').')), 'error');
+        this._busy = false;
+        return;
+      }
+      this._setStatus('⏳ Queued — running inference …', 'busy');
+      this._poll(data.job_id);
+    } catch (e) {
+      this._setStatus('✗ Could not reach the backend at ' + this.API_BASE + '. Start it with `make serve`.', 'error');
+      this._busy = false;
+    }
+  };
+
+  _poll = (jobId) => {
+    const tick = async () => {
+      try {
+        const r = await fetch(this.API_BASE + '/jobs/' + jobId);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const rec = await r.json();
+        if (rec.status === 'queued' || rec.status === 'running') {
+          this._setStatus(rec.status === 'running' ? '⏳ Running inference …' : '⏳ Queued …', 'busy');
+          return;
+        }
+        clearInterval(this._jobTimer);
+        this._busy = false;
+        if (rec.status === 'failed') {
+          this._setStatus('✗ ' + (rec.error || 'Inference failed.'), 'error');
+          return;
+        }
+        this._setStatus('✓ Done — results below.', 'ok');
+        this._renderResults(rec);
+      } catch (e) {
+        clearInterval(this._jobTimer);
+        this._busy = false;
+        this._setStatus('✗ Lost connection to the backend while polling.', 'error');
+      }
+    };
+    this._jobTimer = setInterval(tick, 1500);
+    tick();
+  };
+
+  _renderResults = (rec) => {
+    const m = rec.metrics || {};
+    const a = rec.artifacts || {};
+    const fmt = (v, d) => (v === null || v === undefined ? '—' : Number(v).toFixed(d));
+    // Drive the real Kelvin numbers into the faithfulness cards (and stop the
+    // demo count-up from overwriting them).
+    this._hasReal = true;
+    if (this.biasEl) this.biasEl.textContent = fmt(m.sr_mean_bias_k, 3);
+    if (this.rmseEl) this.rmseEl.textContent = fmt(m.sr_rmse_k, 3);
+    if (!this.results) return;
+    const panel = (src, title, cap) =>
+      '<figure style="margin:0; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.02);">' +
+        '<img src="' + this._asset(src) + '" alt="' + title + '" style="display:block; width:100%; aspect-ratio:1/1; object-fit:cover; image-rendering:pixelated; background:#000;">' +
+        '<figcaption style="padding:11px 13px;"><div style="font-size:13px; font-weight:500; color:#fff;">' + title + '</div>' +
+        '<div style="font-size:11.5px; color:rgba(255,255,255,0.5); margin-top:3px;">' + cap + '</div></figcaption>' +
+      '</figure>';
+    const metric = (label, val, unit, hot) =>
+      '<div style="border-radius:14px; padding:16px 18px; border:1px solid ' + (hot ? 'rgba(232,112,42,0.4)' : 'rgba(255,255,255,0.1)') + '; background:' + (hot ? 'rgba(232,112,42,0.10)' : 'rgba(255,255,255,0.03)') + ';">' +
+        '<div style="font-family:\'JetBrains Mono\',monospace; font-size:10px; letter-spacing:0.1em; color:rgba(255,255,255,0.55);">' + label + '</div>' +
+        '<div style="font-family:\'Playfair Display\',serif; font-size:26px; font-weight:600; margin-top:6px; color:' + (hot ? '#ffb877' : '#fff') + ';">' + val + (unit ? '<span style="font-size:13px; color:rgba(255,255,255,0.5);"> ' + unit + '</span>' : '') + '</div></div>';
+    const dl = (href, label) =>
+      '<a href="' + this._asset(href) + '" download style="display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); color:#fff; font-size:13px; font-weight:500; padding:11px 20px; border-radius:999px; text-decoration:none;">↓ ' + label + '</a>';
+    this.results.innerHTML =
+      '<div style="margin-top:54px; text-align:left;">' +
+        '<div style="font-family:\'JetBrains Mono\',monospace; font-size:11px; letter-spacing:0.16em; color:#e8702a;">RESULT · FAITHFULNESS AUDIT</div>' +
+        '<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-top:18px;">' +
+          panel(a.input_preview_png, 'Input · LR TIR 200m', 'The thermal band you uploaded.') +
+          panel(a.sr_preview_png, 'SR · TIR 100m', '2× super-resolved, same scale.') +
+          panel(a.rgb_preview_png, 'Predicted RGB 100m', 'Colorized translation of the field.') +
+          panel(a.residual_preview_png, 'Residual · RdBu_r', 'Near-zero ≈ nothing invented.') +
+        '</div>' +
+        '<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:12px; margin-top:16px;">' +
+          metric('PSNR (SR)', fmt(m.psnr_sr, 2), 'dB', false) +
+          metric('SSIM (SR)', fmt(m.ssim_sr, 3), '', false) +
+          metric('SR_MEAN_BIAS_K', fmt(m.sr_mean_bias_k, 3), 'K', true) +
+          metric('SR_RMSE_K', fmt(m.sr_rmse_k, 3), 'K', true) +
+        '</div>' +
+        '<p style="font-size:12px; color:rgba(255,255,255,0.4); margin-top:14px; line-height:1.5;">PSNR / SSIM need an HR ground-truth reference and read “—” at inference — never fabricated. The two Kelvin metrics are the physics-fidelity claim.</p>' +
+        '<div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:18px;">' +
+          dl(a.sr_tif, 'SR TIR (GeoTIFF)') + dl(a.rgb_tif, 'RGB (GeoTIFF)') +
+        '</div>' +
+      '</div>';
+    this.results.style.display = 'block';
+    this.results.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
 
   // ----- slider -----
@@ -358,6 +489,7 @@ class Component extends DCLogic {
       setCanvas: this.setCanvas, setSlider: this.setSlider, setAfter: this.setAfter,
       setHandle: this.setHandle, setUpload: this.setUpload, setInput: this.setInput,
       setDrop: this.setDrop, setFileName: this.setFileName, setBias: this.setBias, setRmse: this.setRmse,
+      setResults: this.setResults,
       setHeroTag: this.setHeroTag, setHeroTitle: this.setHeroTitle, setHeroSub: this.setHeroSub, setHeroCta: this.setHeroCta,
       scrollToUpload: this.scrollToUpload, onPickFile: this.onPickFile, onFileChange: this.onFileChange,
       onSliderDown: this.onSliderDown,
@@ -379,10 +511,11 @@ class Component extends DCLogic {
         e.preventDefault();
         this.drop.style.borderColor = 'rgba(255,255,255,0.2)'; this.drop.style.background = 'rgba(255,255,255,0.02)';
         const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-        if (f && this.fileName) this.fileName.textContent = '✓ ' + f.name + ' — ready (connect the FastAPI backend to run)';
+        if (f) this._runFile(f);
       });
     }
 
+    this._checkHealth();
     this._initReveal();
     this._initScene();
   }
@@ -394,6 +527,7 @@ class Component extends DCLogic {
     if (this._cuTimer) clearTimeout(this._cuTimer);
     if (this._onResize) window.removeEventListener('resize', this._onResize);
     if (this._io) this._io.disconnect();
+    if (this._jobTimer) clearInterval(this._jobTimer);
     if (this._renderer) { try { this._renderer.dispose(); } catch (e) {} }
   }
 
@@ -402,7 +536,7 @@ class Component extends DCLogic {
     // preview contexts). Here we only drive the rAF-based Kelvin count-up, which
     // runs reliably, when the faithfulness section scrolls into view — with a
     // timeout fallback so the numbers always populate.
-    const run = () => { if (this._counted) return; this._counted = true; this._countUp(); };
+    const run = () => { if (this._counted || this._hasReal) return; this._counted = true; this._countUp(); };
     const fcard = document.getElementById('faithful');
     if (fcard && 'IntersectionObserver' in window) {
       this._io = new IntersectionObserver((ents) => {
@@ -415,7 +549,7 @@ class Component extends DCLogic {
 
   _countUp() {
     const animate = (el, target) => {
-      if (!el) return;
+      if (!el || this._hasReal) return;
       let t0 = null;
       const dur = 1400;
       const step = (ts) => {

@@ -5,9 +5,32 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ChaturVyuha · Thermal-IR SR + Colorization</title>
+    <!-- The landing page is the 3D site in public/chaturvyuha-site/. The old
+         React app still lives in src/ and is reachable at /app/ (see README). -->
+    <meta http-equiv="refresh" content="0; url=/chaturvyuha-site/ChaturVyuha%203D.dc.html" />
+    <script>
+      // Immediate client-side redirect (replace, so Back doesn't loop here).
+      window.location.replace("/chaturvyuha-site/ChaturVyuha%203D.dc.html");
+    </script>
+    <style>
+      html, body { margin: 0; height: 100%; background: #05060a; color: #fff;
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif; }
+      .splash { position: fixed; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 16px; }
+      .dot { width: 30px; height: 30px; border-radius: 50%;
+        background: radial-gradient(circle at 32% 30%, #ffcf8a, #e8702a 45%, #7a2f0c 100%);
+        box-shadow: 0 0 18px rgba(232,112,42,0.6); }
+      .label { font-size: 13px; letter-spacing: 0.04em; color: rgba(255,255,255,0.6); }
+      a { color: #ffb877; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div class="splash">
+      <div class="dot"></div>
+      <div class="label">Loading ChaturVyuha…</div>
+      <noscript>
+        <a href="/chaturvyuha-site/ChaturVyuha%203D.dc.html">Enter the ChaturVyuha 3D site →</a>
+      </noscript>
+    </div>
   </body>
 </html>
