@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Barlow:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { background:#000; color:#fff; font-family:'Barlow',sans-serif; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+  ::selection { background:rgba(255,255,255,0.22); color:#000; }
+  a, button { transition: color .3s ease, background-color .3s ease, opacity .3s ease, transform .35s cubic-bezier(.2,.7,.2,1); }
+  nav a:hover { color:#fff !important; }
+  #cv-stars { mix-blend-mode:screen; }
+  .liquid-glass { background:rgba(255,255,255,0.01); background-blend-mode:luminosity; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); border:none; box-shadow:inset 0 1px 1px rgba(255,255,255,0.1); position:relative; overflow:hidden; }
+  .liquid-glass::before { content:""; position:absolute; inset:0; border-radius:inherit; padding:1.4px; background:linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.15) 20%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.15) 80%, rgba(255,255,255,0.45) 100%); -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite:xor; mask-composite:exclude; pointer-events:none; }
+  .liquid-glass-strong { background:rgba(255,255,255,0.04); background-blend-mode:luminosity; backdrop-filter:blur(50px); -webkit-backdrop-filter:blur(50px); border:none; box-shadow:4px 4px 4px rgba(0,0,0,0.05), inset 0 1px 1px rgba(255,255,255,0.15); position:relative; overflow:hidden; }
+  .liquid-glass-strong::before { content:""; position:absolute; inset:0; border-radius:inherit; padding:1.4px; background:linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.2) 20%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.2) 80%, rgba(255,255,255,0.5) 100%); -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite:xor; mask-composite:exclude; pointer-events:none; }
+  ::-webkit-scrollbar { width:10px; }
+  ::-webkit-scrollbar-track { background:#000; }
+  ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.16); border-radius:9999px; }
+  ::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,0.3); }
+</style>
+<script>
+(function(){
+  if (window.__cvStars && window.__cvStars.stop) { try { window.__cvStars.stop(); } catch(e){} }
+  function start(){
+    if (!document.body) { return setTimeout(start, 50); }
+    var canvas = document.getElementById('cv-stars');
+    if (!canvas) { canvas = document.createElement('canvas'); canvas.id='cv-stars'; canvas.style.cssText='position:fixed;inset:0;width:100vw;height:100vh;z-index:40;pointer-events:none;'; }
+    if (!canvas.parentNode) document.body.appendChild(canvas);
+    var ctx = canvas.getContext('2d'); if(!ctx) return;
+    var dpr = Math.min(window.devicePixelRatio||1, 2);
+    var W, H, stars = [], trail = [], mouse = {x:-999,y:-999}, last = {x:-999,y:-999}, raf, t = 0;
+    function resize(){ W=window.innerWidth; H=window.innerHeight; canvas.width=W*dpr; canvas.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); }
+    resize(); window.addEventListener('resize', resize);
+    for (var i=0;i<78;i++){ stars.push({x:Math.random()*W, y:Math.random()*H, r:Math.random()*1.1+0.3, a:Math.random()*0.45+0.12, tw:Math.random()*6.28, sp:0.5+Math.random()*0.9, vx:(Math.random()-0.5)*0.05, vy:(Math.random()-0.5)*0.05}); }
+    function onMove(e){ mouse.x=e.clientX; mouse.y=e.clientY; }
+    window.addEventListener('mousemove', onMove, {passive:true});
+    function spawn(){ if(mouse.x<0) return; var dx=mouse.x-last.x, dy=mouse.y-last.y; if((dx*dx+dy*dy)>40){ last.x=mouse.x; last.y=mouse.y; if(trail.length<70) trail.push({x:mouse.x+(Math.random()-0.5)*6, y:mouse.y+(Math.random()-0.5)*6, r:Math.random()*1.5+0.7, life:1, vx:(Math.random()-0.5)*0.5, vy:(Math.random()-0.5)*0.5+0.15, rot:Math.random()*3.14}); } }
+    function drawStar(cx,cy,r,rot,alpha){ ctx.save(); ctx.translate(cx,cy); ctx.rotate(rot); ctx.beginPath(); for(var k=0;k<5;k++){ var a1=(1.2566*k)-1.5708; ctx.lineTo(Math.cos(a1)*r, Math.sin(a1)*r); var a2=a1+0.6283; ctx.lineTo(Math.cos(a2)*r*0.45, Math.sin(a2)*r*0.45); } ctx.closePath(); ctx.fillStyle='rgba(255,255,255,'+alpha+')'; ctx.shadowColor='rgba(190,215,255,'+alpha+')'; ctx.shadowBlur=7; ctx.fill(); ctx.restore(); }
+    function loop(){ t+=0.016; ctx.clearRect(0,0,W,H);
+      for(var i=0;i<stars.length;i++){ var s=stars[i]; s.x+=s.vx; s.y+=s.vy; if(s.x<0)s.x=W; if(s.x>W)s.x=0; if(s.y<0)s.y=H; if(s.y>H)s.y=0; var a=s.a*(0.55+0.45*Math.sin(t*s.sp+s.tw)); ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,6.2832); ctx.fillStyle='rgba(255,255,255,'+a+')'; ctx.fill(); }
+      spawn();
+      for(var j=trail.length-1;j>=0;j--){ var p=trail[j]; p.life-=0.02; if(p.life<=0){ trail.splice(j,1); continue; } p.x+=p.vx; p.y+=p.vy; p.rot+=0.02; drawStar(p.x,p.y,p.r*(0.5+p.life*0.6), p.rot, Math.max(0,p.life*0.85)); }
+      raf=requestAnimationFrame(loop);
+    }
+    loop();
+    window.__cvStars = { stop:function(){ cancelAnimationFrame(raf); window.removeEventListener('resize',resize); window.removeEventListener('mousemove',onMove); if(canvas.parentNode) canvas.parentNode.removeChild(canvas); window.__cvStars=null; } };
+  }
+  start();
+})();
+</script>
+</helmet>
+
+<div style="position:relative; background:#000;">
+  <template id="__bundler_thumbnail">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="100" fill="#05070d"></rect>
+      <circle cx="50" cy="50" r="20" fill="none" stroke="#e8702a" stroke-width="2.4"></circle>
+      <circle cx="50" cy="50" r="11" fill="#e8702a" opacity="0.85"></circle>
+      <circle cx="79" cy="29" r="2.6" fill="#ffffff"></circle>
+      <circle cx="23" cy="73" r="1.9" fill="#ffffff"></circle>
+      <circle cx="31" cy="25" r="1.4" fill="#ffffff"></circle>
+      <circle cx="72" cy="68" r="1.5" fill="#ffffff"></circle>
+    </svg>
+  </template>
+
+  <!-- NAVBAR -->
+  <nav style="position:fixed; top:16px; left:0; right:0; z-index:50; display:flex; align-items:center; justify-content:space-between; padding:0 32px; max-width:1320px; margin:0 auto;">
+    <div class="liquid-glass" style="width:48px; height:48px; border-radius:9999px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+      <span style="font-family:'Instrument Serif',serif; font-style:italic; font-size:26px; line-height:1; color:#fff; margin-top:-2px;">c</span>
+    </div>
+    <div class="liquid-glass" style="display:flex; align-items:center; gap:2px; padding:6px; border-radius:9999px;">
+      <a href="#hero" style="padding:8px 14px; font-size:13px; font-weight:500; color:rgba(255,255,255,0.92); text-decoration:none; border-radius:9999px;">Overview</a>
+      <a href="#capabilities" style="padding:8px 14px; font-size:13px; font-weight:500; color:rgba(255,255,255,0.7); text-decoration:none; border-radius:9999px;">Pipeline</a>
+      <a href="#compare" style="padding:8px 14px; font-size:13px; font-weight:500; color:rgba(255,255,255,0.7); text-decoration:none; border-radius:9999px;">Compare</a>
+      <a href="#faithful" style="padding:8px 14px; font-size:13px; font-weight:500; color:rgba(255,255,255,0.7); text-decoration:none; border-radius:9999px;">Faithfulness</a>
+      <button onClick="{{ onPickFile }}" style="display:flex; align-items:center; gap:6px; background:#fff; color:#000; border:none; font-family:'Barlow',sans-serif; font-size:13px; font-weight:600; padding:9px 16px; margin-left:4px; border-radius:9999px; cursor:pointer; white-space:nowrap;" style-hover="opacity:0.88;">Launch demo
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"></path><path d="M7 7h10v10"></path></svg>
+      </button>
+    </div>
+    <div style="width:48px; height:48px; flex-shrink:0;"></div>
+  </nav>
+
+  <!-- HERO -->
+  <section id="hero" data-screen-label="Hero" style="position:relative; min-height:100vh; overflow:hidden; background:#000; display:flex; flex-direction:column;">
+    <video ref="{{ setHeroVideo }}" preload="auto" style="position:absolute; left:50%; top:0; transform:translateX(-50%); width:120%; height:120%; object-fit:cover; object-position:top center; z-index:0; opacity:0;">
+      <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260418_080021_d598092b-c4c2-4e53-8e46-94cf9064cd50.mp4" type="video/mp4">
+    </video>
+    <div style="position:absolute; left:0; right:0; bottom:0; height:46vh; z-index:1; pointer-events:none; background:linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.5) 58%, #000 100%);"></div>
+
+    <div style="position:relative; z-index:10; flex:1; display:flex; flex-direction:column;">
+      <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:128px 16px 24px;">
+
+        <div data-anim="400" class="liquid-glass" style="display:flex; align-items:center; gap:10px; padding:5px 5px 5px 5px; border-radius:9999px; margin-bottom:30px;">
+          <span style="background:#fff; color:#000; padding:4px 11px; font-size:11px; font-weight:600; border-radius:9999px;">New</span>
+          <span style="font-size:13px; color:rgba(255,255,255,0.9); padding-right:12px;">Landsat-9 thermal, super-resolved &amp; colourised at 100 m</span>
+        </div>
+
+        <p data-blur="" style="display:flex; flex-wrap:wrap; justify-content:center; row-gap:0.08em; max-width:920px; font-family:'Instrument Serif',serif; font-style:italic; font-size:clamp(50px,9vw,86px); line-height:0.82; letter-spacing:-0.03em; color:#fff;"><span data-word="" style="display:inline-block; margin-right:0.26em;">Venture</span><span data-word="" style="display:inline-block; margin-right:0.26em;">Past</span><span data-word="" style="display:inline-block; margin-right:0.26em;">the</span><span data-word="" style="display:inline-block; margin-right:0.26em;">Visible</span><span data-word="" style="display:inline-block; margin-right:0.26em;">Spectrum</span></p>
+
+        <p data-anim="800" style="margin-top:22px; max-width:600px; font-size:clamp(14px,1.5vw,17px); font-weight:300; line-height:1.45; color:rgba(255,255,255,0.92);">A single 200-metre thermal band, super-resolved to 100 m and colourised into RGB — sharpening only what the physics supports, faithful and auditable, and never inventing a single pixel.</p>
+
+        <div data-anim="1100" style="display:flex; align-items:center; gap:22px; margin-top:30px;">
+          <button onClick="{{ onPickFile }}" class="liquid-glass-strong" style="display:flex; align-items:center; gap:8px; padding:13px 22px; border-radius:9999px; font-size:14px; font-weight:500; color:#fff; cursor:pointer; background:rgba(255,255,255,0.06);" style-hover="transform:scale(1.03);">Start a Voyage
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"></path><path d="M7 7h10v10"></path></svg>
+          </button>
+          <a href="#compare" style="display:flex; align-items:center; gap:8px; font-size:14px; font-weight:500; color:#fff; text-decoration:none;">See the Result
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
+          </a>
+        </div>
+
+        <div data-anim="1300" style="display:flex; align-items:stretch; gap:16px; margin-top:38px;">
+          <div class="liquid-glass" style="width:228px; padding:20px; border-radius:20px; display:flex; flex-direction:column; align-items:flex-start; text-align:left;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5a2 2 0 0 1 2-2h3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M21 16v3a2 2 0 0 1-2 2h-3"></path><rect x="8" y="8" width="8" height="8" rx="1"></rect></svg>
+            <span style="font-family:'Instrument Serif',serif; font-style:italic; font-size:34px; letter-spacing:-1px; line-height:1; margin-top:14px;">2×</span>
+            <span style="font-size:12px; font-weight:300; color:rgba(255,255,255,0.85); margin-top:8px; line-height:1.35;">Spatial super-resolution · 200 m → 100 m</span>
+          </div>
+          <div class="liquid-glass" style="width:228px; padding:20px; border-radius:20px; display:flex; flex-direction:column; align-items:flex-start; text-align:left;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><path d="M12 3c2.5 2.8 2.5 15.2 0 18M12 3c-2.5 2.8-2.5 15.2 0 18"></path></svg>
+            <span style="font-family:'Instrument Serif',serif; font-style:italic; font-size:34px; letter-spacing:-1px; line-height:1; margin-top:14px;">100 m</span>
+            <span style="font-size:12px; font-weight:300; color:rgba(255,255,255,0.85); margin-top:8px; line-height:1.35;">Colourised RGB · Kelvin-faithful output</span>
+          </div>
+        </div>
+      </div>
+
+      <div data-anim="1400" style="display:flex; flex-direction:column; align-items:center; gap:18px; padding-bottom:34px;">
+        <div class="liquid-glass" style="padding:6px 16px; border-radius:9999px; font-size:12px; font-weight:500; color:rgba(255,255,255,0.9);">Grounded in physics — engineered against hallucination</div>
+        <div style="display:flex; align-items:center; gap:clamp(28px,5vw,60px); flex-wrap:wrap; justify-content:center; font-family:'Instrument Serif',serif; font-style:italic; font-size:clamp(20px,2.5vw,30px); letter-spacing:-0.01em; color:rgba(255,255,255,0.96);">
+          <span>Landsat‑9</span><span>EDSR</span><span>SwinIR</span><span>pix2pix</span><span>FastAPI</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CAPABILITIES -->
+  <section id="capabilities" data-screen-label="Capabilities" style="position:relative; min-height:100vh; overflow:hidden; background:#000; display:flex; flex-direction:column;">
+    <video ref="{{ setCapVideo }}" preload="auto" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; opacity:0;">
+      <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260418_094631_d30ab262-45ee-4b7d-99f3-5d5848c8ef13.mp4" type="video/mp4">
+    </video>
+    <div style="position:absolute; left:0; right:0; top:0; height:46vh; z-index:1; pointer-events:none; background:linear-gradient(to top, rgba(0,0,0,0) 0%, rgba(0,0,0,0.5) 58%, #000 100%);"></div>
+
+    <div style="position:relative; z-index:10; display:flex; flex-direction:column; min-height:100vh; padding:108px clamp(24px,5vw,80px) 48px;">
+      <div style="margin-bottom:auto;">
+        <div data-reveal="" style="font-size:14px; color:rgba(255,255,255,0.8); margin-bottom:22px;">// What it does</div>
+        <h2 data-reveal="" style="font-family:'Instrument Serif',serif; font-style:italic; font-size:clamp(46px,7vw,92px); line-height:0.9; letter-spacing:-0.025em; color:#fff;">Sharpened,<br>never invented.</h2>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:22px; margin-top:60px;">
+
+        <div data-reveal="" class="liquid-glass" style="border-radius:22px; padding:26px; min-height:360px; display:flex; flex-direction:column;">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px;">
+            <div class="liquid-glass" style="width:46px; height:46px; border-radius:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; max-width:72%;">
+              <span class="liquid-glass" style="padding:4px 11px; border-radius:9999px; font-size:11px; color:rgba(255,255,255,0.9); white-space:nowrap;">Charbonnier</span>
+              <span class="liquid-glass" style="padding:4px 11px; border-radius:9999px; font-size:11px; color:rgba(255,255,255,0.9); white-space:nowrap;">Physics-consistent</span>
+              <span class="liquid-glass" style="padding:4px 11px; border-radius:9999px; font-size:11px; color:rgba(255,255,255,0.9); white-space:nowrap;">EDSR</span>
+              <span class="liquid-glass" style="padding:4px 11px; border-radius:9999px; font-size:11px; color:rgba(255,255,255,0.9); white-space:nowrap;">SwinIR</span>
+            </div>
+          </div>
+          <div style="flex:1;"></div>
+          <div style="margin-top:24px;">
+            <h3 style="font-family:'Instrument Serif',serif; font-style:italic; font-size:clamp(26px,2.6vw,34px); letter-spacing:-1px; line-height:1; color:#fff;">Super-Resolution</h3>
+            <p style="margin-top:12px; font-size:13.5px; font-weight:300; line-height:1.5; color:rgba(255,255,255,0.9); max-width:32ch;">A residual-CNN or window-attention transformer lifts a 200 m thermal band to 100 m — sharpening real structure, with a downsample-consistency constraint that forbids invented detail.</p>
+          </div>
+        </div>
+
+        <div data-reveal="" class="liquid-glass" style="border-radius:22px; padding:26px; min-height:360px; display:flex; flex-direction:column;">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px;">
+            <div class="liquid-glass" style="width:46px; height:46px; border-radius:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="10" r="6"></circle><circle cx="15" cy="14" r="6"></circle></svg>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; max-width:72%;">
+              <span class="liquid-glass" style="padding:4px 11px; border-radius:9999px; font-size:11px; color:rgba(255,255,255,0.9); white-space:nowrap;">U-Net</span>
+              <span class="liquid-glass" style="padding:4px 11px; border-radius:9999px; font-size:11px; color:rgba(255,255,255,0.9); white-space:nowrap;">PatchGAN</span>
+              <span class="liquid-glass" style="padding:4px 11px; border-radius:9999px; font-size:11px; color:rgba(255,255,255,0.9); white-space:nowrap;">L1 + Adversarial</span>
+              <span class="liquid-glass" style="padding:4px 11px; border-radius:9999px; font-size:11px; color:rgba(255,255,255,0.9); white-space:nowrap;">SSIM</span>
+            </div>
+          </div>
+          <div style="flex:1;"></div>
+          <div style="margin-top:24px;">
+            <h3 style="font-family:'Instrument Serif',serif; font-style:italic; font-size:clamp(26px,2.6vw,34px); letter-spacing:-1px; line-height:1; color:#fff;">Colorization</h3>
+            <p style="margin-top:12px; font-size:13.5px; font-weight:300; line-height:1.5; color:rgba(255,255,255,0.9); max-width:32ch;">A conditional GAN translates single-band thermal into realistic RGB at 100 m, keeping land, water and vegetation thermal-to-colour relationships plausible and consistent across the scene.</p>
+          </div>
+        </div>
+
+        <div data-reveal="" class="liquid-glass" style="border-radius:22px; padding:26px; min-height:360px; display:flex; flex-direction:column;">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px;">
+            <div class="liquid-glass" style="width:46px; height:46px; border-radius:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.4-3 8.3-7 9.5C8 21.3 5 17.4 5 13V6l7-3Z"></path><path d="M9 12l2 2 4-4.5"></path></svg>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; max-width:72%;">
+              <span class="liquid-glass" style="padding:4px 11px; border-radius:9999px; font-size:11px; color:rgba(255,255,255,0.9); white-space:nowrap;">Residual Map</span>
+              <span class="liquid-glass" style="padding:4px 11px; border-radius:9999px; font-size:11px; color:rgba(255,255,255,0.9); white-space:nowrap;">Kelvin RMSE</span>
+              <span class="liquid-glass" style="padding:4px 11px; border-radius:9999px; font-size:11px; color:rgba(255,255,255,0.9); white-space:nowrap;">CRS-Preserved</span>
+              <span class="liquid-glass" style="padding:4px 11px; border-radius:9999px; font-size:11px; color:rgba(255,255,255,0.9); white-space:nowrap;">No Hallucination</span>
+            </div>
+          </div>
+          <div style="flex:1;"></div>
+          <div style="margin-top:24px;">
+            <h3 style="font-family:'Instrument Serif',serif; font-style:italic; font-size:clamp(26px,2.6vw,34px); letter-spacing:-1px; line-height:1; color:#fff;">Faithfulness Audit</h3>
+            <p style="margin-top:12px; font-size:13.5px; font-weight:300; line-height:1.5; color:rgba(255,255,255,0.9); max-width:32ch;">Every result ships a residual map (SR minus upsampled LR) and Kelvin-unit metrics, so a reviewer can verify the model sharpened what was there and invented nothing.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPARE -->
+  
+
+  <!-- DEMO -->
+  <section id="demo" data-screen-label="Demo" style="position:relative; z-index:5; background:#000; padding:clamp(90px,11vw,150px) clamp(24px,5vw,80px); text-align:center;">
+    <div style="max-width:720px; margin:0 auto;">
+      
+      <h2 data-reveal="" style="font-family:'Instrument Serif',serif; font-style:italic; font-size:clamp(40px,6.5vw,82px); line-height:0.92; letter-spacing:-0.025em; color:#fff;">Bring your own scene.</h2>
+      <p data-reveal="" style="margin-top:20px; max-width:540px; margin-left:auto; margin-right:auto; font-size:16px; font-weight:300; line-height:1.55; color:rgba(255,255,255,0.65);">Drop a single-band georeferenced TIR GeoTIFF. The backend validates one band and a valid CRS, runs inference off the event loop, and streams back super-resolved TIR, colourised RGB, and a residual audit.</p>
+
+      <div data-reveal="" ref="{{ setDrop }}" onClick="{{ onPickFile }}" class="liquid-glass" style="margin-top:40px; padding:46px 30px; border-radius:24px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:15px;">
+        <div class="liquid-glass" style="width:58px; height:58px; border-radius:16px; display:flex; align-items:center; justify-content:center;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"></path><path d="M6 10l6-6 6 6"></path><path d="M4 20h16"></path></svg>
+        </div>
+        <div style="font-size:17px; font-weight:500; color:#fff;">Drop a <span style="font-family:'Instrument Serif',serif; font-style:italic;">.tif</span> or click to browse</div>
+        <div style="font-size:12px; color:rgba(255,255,255,0.45);">single-band · georeferenced · ≤ 60 MB</div>
+        <span ref="{{ setFileName }}" style="font-size:13px; color:#fff; min-height:18px;"></span>
+      </div>
+      <input ref="{{ setInput }}" type="file" accept=".tif,.tiff" style="display:none;" onChange="{{ onFileChange }}">
+
+      <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-top:26px; flex-wrap:wrap; font-size:12px; color:rgba(255,255,255,0.4);">
+        <span style="opacity:0.4;">·</span><span style="opacity:0.4;">·</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer style="position:relative; z-index:5; background:#000; border-top:1px solid rgba(255,255,255,0.08); padding:34px clamp(24px,5vw,80px); display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap;">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div class="liquid-glass" style="width:34px; height:34px; border-radius:9999px; display:flex; align-items:center; justify-content:center;">
+        <span style="font-family:'Instrument Serif',serif; font-style:italic; font-size:18px; margin-top:-1px;">c</span>
+      </div>
+      <span style="font-family:'Instrument Serif',serif; font-style:italic; font-size:18px;">ChaturVyuha</span>
+    </div>
+    <span style="font-size:12px; color:rgba(255,255,255,0.4); letter-spacing:0.04em;">BAH-2026 · PS10 · SAC-ISRO</span>
+    <span style="font-size:12px; color:rgba(255,255,255,0.35);">Sharpens what's there. Never invents.</span>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;100%&quot;}}">
+class Component extends DCLogic {
+  _fades = {};
+
+  // ---- refs ----
+  setHeroVideo = (el) => { if (el && !this._fades.hero) this._setupFadingVideo(el, 'hero'); };
+  setCapVideo = (el) => { if (el && !this._fades.cap) this._setupFadingVideo(el, 'cap'); };
+  setSlider = (el) => { this.slider = el; };
+  setAfter = (el) => { this.after = el; };
+  setHandle = (el) => { this.handle = el; };
+  setInput = (el) => { this.input = el; };
+  setDrop = (el) => { this.drop = el; };
+  setFileName = (el) => { this.fileName = el; };
+
+  // ---- actions ----
+  onPickFile = () => { if (this.input) this.input.click(); };
+  onFileChange = (e) => {
+    const f = e.target && e.target.files && e.target.files[0];
+    if (f && this.fileName) this.fileName.textContent = '✓ ' + f.name + ' — ready (connect the FastAPI backend to run)';
+  };
+
+  // ---- before/after slider ----
+  _setPct = (clientX) => {
+    if (!this.slider) return;
+    const r = this.slider.getBoundingClientRect();
+    let p = (clientX - r.left) / r.width * 100;
+    p = Math.max(0, Math.min(100, p));
+    if (this.after) this.after.style.clipPath = 'inset(0 0 0 ' + p + '%)';
+    if (this.handle) this.handle.style.left = p + '%';
+  };
+  onSliderDown = (e) => { this._drag = true; this._setPct(e.clientX); };
+
+  // ---- FadingVideo: rAF-driven crossfade loop (no CSS transitions) ----
+  _setupFadingVideo(video, key) {
+    const FADE_MS = 500, LEAD = 0.55;
+    const state = { raf: 0, fadingOut: false };
+    this._fades[key] = state;
+
+    const fadeTo = (target, dur) => {
+      cancelAnimationFrame(state.raf);
+      const start = parseFloat(video.style.opacity || '0');
+      const t0 = performance.now();
+      const step = (now) => {
+        const k = Math.min(1, (now - t0) / dur);
+        video.style.opacity = String(start + (target - start) * k);
+        if (k < 1) state.raf = requestAnimationFrame(step);
+      };
+      state.raf = requestAnimationFrame(step);
+    };
+
+    try { video.muted = true; video.playsInline = true; video.autoplay = true; video.loop = false; video.preload = 'auto'; } catch (e) {}
+    video.style.opacity = '0';
+
+    const onLoaded = () => { video.style.opacity = '0'; const p = video.play(); if (p && p.catch) p.catch(() => {}); fadeTo(1, FADE_MS); };
+    const onTime = () => {
+      const d = video.duration;
+      if (!state.fadingOut && d && (d - video.currentTime) <= LEAD && (d - video.currentTime) > 0) {
+        state.fadingOut = true; fadeTo(0, FADE_MS);
+      }
+    };
+    const onEnded = () => {
+      video.style.opacity = '0';
+      setTimeout(() => {
+        try { video.currentTime = 0; } catch (e) {}
+        const p = video.play(); if (p && p.catch) p.catch(() => {});
+        state.fadingOut = false; fadeTo(1, FADE_MS);
+      }, 100);
+    };
+
+    video.addEventListener('loadeddata', onLoaded);
+    video.addEventListener('timeupdate', onTime);
+    video.addEventListener('ended', onEnded);
+    state.cleanup = () => {
+      cancelAnimationFrame(state.raf);
+      clearTimeout(state.fallback);
+      video.removeEventListener('loadeddata', onLoaded);
+      video.removeEventListener('timeupdate', onTime);
+      video.removeEventListener('ended', onEnded);
+    };
+
+    const p = video.play(); if (p && p.catch) p.catch(() => {});
+    if (video.readyState >= 2) onLoaded();
+    // safety: if the source is slow/unavailable, reveal whatever loads anyway
+    state.fallback = setTimeout(() => { if (parseFloat(video.style.opacity || '0') === 0) fadeTo(1, FADE_MS); }, 2600);
+  }
+
+  // ---- rAF entrance tween (blur + rise + fade), robust where CSS timelines are frozen ----
+  _tweenIn(el, delayMs, y, blur, dur) {
+    el.style.opacity = '0';
+    el.style.filter = 'blur(' + blur + 'px)';
+    el.style.transform = 'translateY(' + y + 'px)';
+    el.style.willChange = 'opacity, transform, filter';
+    const startAt = performance.now() + delayMs;
+    const step = (now) => {
+      const k = Math.max(0, Math.min(1, (now - startAt) / dur));
+      const e = 1 - Math.pow(1 - k, 3);
+      el.style.opacity = String(e);
+      el.style.filter = 'blur(' + (blur * (1 - e)) + 'px)';
+      el.style.transform = 'translateY(' + (y * (1 - e)) + 'px)';
+      if (k < 1) requestAnimationFrame(step);
+      else { el.style.opacity = '1'; el.style.filter = 'none'; el.style.transform = 'none'; el.style.willChange = 'auto'; }
+    };
+    requestAnimationFrame(step);
+  }
+
+  _animateIn() {
+    try {
+      const words = Array.prototype.slice.call(document.querySelectorAll('[data-word]'));
+      words.forEach((w, i) => this._tweenIn(w, 200 + i * 95, 46, 10, 720));
+      const els = Array.prototype.slice.call(document.querySelectorAll('[data-anim]'));
+      els.forEach((el) => this._tweenIn(el, parseFloat(el.getAttribute('data-anim')) || 0, 18, 8, 720));
+    } catch (e) {
+      Array.prototype.slice.call(document.querySelectorAll('[data-word],[data-anim]')).forEach((el) => {
+        el.style.opacity = '1'; el.style.filter = 'none'; el.style.transform = 'none';
+      });
+    }
+  }
+
+  _initReveal() {
+    const reveal = (el) => this._tweenIn(el, 0, 22, 8, 760);
+    const els = Array.prototype.slice.call(document.querySelectorAll('[data-reveal]'));
+    if ('IntersectionObserver' in window) {
+      this._io = new IntersectionObserver((entries) => {
+        entries.forEach((en) => { if (en.isIntersecting) { reveal(en.target); this._io.unobserve(en.target); } });
+      }, { threshold: 0.14 });
+      els.forEach((el) => this._io.observe(el));
+    } else {
+      els.forEach((el) => { el.style.opacity = '1'; });
+    }
+    // Kelvin count-up when the compare section is in view, with a rAF fallback
+    this._countTarget = document.getElementById('faithful');
+    if (this._countTarget && 'IntersectionObserver' in window) {
+      this._cio = new IntersectionObserver((ents) => {
+        ents.forEach((en) => { if (en.isIntersecting) { this._countUp(); this._cio.disconnect(); } });
+      }, { threshold: 0.3 });
+      this._cio.observe(this._countTarget);
+    }
+    let f = 0;
+    const fc = () => { if (this._counted) return; if (f++ > 150) { this._countUp(); return; } requestAnimationFrame(fc); };
+    requestAnimationFrame(fc);
+  }
+
+  _countUp() {
+    if (this._counted) return;
+    this._counted = true;
+    const animate = (el, target) => {
+      if (!el) return;
+      let t0 = null; const dur = 1300;
+      const step = (ts) => {
+        if (!t0) t0 = ts;
+        const k = Math.min(1, (ts - t0) / dur);
+        const e = 1 - Math.pow(1 - k, 3);
+        el.textContent = (target * e).toFixed(2);
+        if (k < 1) requestAnimationFrame(step); else el.textContent = target.toFixed(2);
+      };
+      el.textContent = '0.00';
+      requestAnimationFrame(step);
+    };
+    animate(document.querySelector('[data-metric="bias"]'), 0.04);
+    animate(document.querySelector('[data-metric="rmse"]'), 0.71);
+  }
+
+  componentDidMount() {
+    this._mv = (e) => { if (this._drag) this._setPct(e.clientX); };
+    this._up = () => { this._drag = false; };
+    window.addEventListener('pointermove', this._mv);
+    window.addEventListener('pointerup', this._up);
+
+    if (this.drop) {
+      const on = () => { this.drop.style.background = 'rgba(255,255,255,0.06)'; };
+      const off = () => { this.drop.style.background = ''; };
+      this.drop.addEventListener('dragover', (e) => { e.preventDefault(); on(); });
+      this.drop.addEventListener('dragleave', off);
+      this.drop.addEventListener('drop', (e) => {
+        e.preventDefault(); off();
+        const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (f && this.fileName) this.fileName.textContent = '✓ ' + f.name + ' — ready (connect the FastAPI backend to run)';
+      });
+    }
+
+    this._animateIn();
+    this._initReveal();
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('pointermove', this._mv);
+    window.removeEventListener('pointerup', this._up);
+    Object.keys(this._fades).forEach((k) => { if (this._fades[k].cleanup) this._fades[k].cleanup(); });
+    if (this._io) this._io.disconnect();
+    if (this._cio) this._cio.disconnect();
+  }
+
+  renderVals() {
+    return {
+      setHeroVideo: this.setHeroVideo, setCapVideo: this.setCapVideo,
+      setSlider: this.setSlider, setAfter: this.setAfter, setHandle: this.setHandle,
+      setInput: this.setInput, setDrop: this.setDrop, setFileName: this.setFileName,
+      onPickFile: this.onPickFile, onFileChange: this.onFileChange, onSliderDown: this.onSliderDown,
+    };
+  }
+}
+</script>
+</body>
+</html>
