@@ -23,7 +23,21 @@ LOG = get_logger("api.server")
 CONFIG_PATH = os.environ.get("TIR_INFER_CONFIG", "configs/infer.yaml")
 JOBS_DIR = Path(os.environ.get("TIR_JOBS_DIR", "out/api_jobs"))
 SEED = int(os.environ.get("TIR_SEED", "42"))
-ALLOWED_ORIGINS = ["http://localhost:5173"]
+
+# Origins the browser may call /infer from. Covers the common ways the static
+# landing is served locally — Vite (5173), `vite preview` (4173), and VS Code
+# Live Server (5500) — on both localhost and 127.0.0.1. Override with
+# TIR_ALLOWED_ORIGINS (comma-separated) for any other host/port.
+_DEFAULT_ORIGINS = [
+    f"http://{host}:{port}"
+    for host in ("localhost", "127.0.0.1")
+    for port in ("5173", "4173", "5500")
+]
+ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get("TIR_ALLOWED_ORIGINS", ",".join(_DEFAULT_ORIGINS)).split(",")
+    if o.strip()
+]
 
 app = FastAPI(title="ChaturVyuha TIR SR+Colorization API", version="0.1.0")
 app.add_middleware(

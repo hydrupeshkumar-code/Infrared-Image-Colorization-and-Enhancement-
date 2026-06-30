@@ -207,9 +207,13 @@ faithfulness/anti-hallucination story. See
 pip install -e ".[api]"
 make serve                                # or: uvicorn app:app --reload (needs checkpoints)
 
-# 2. Frontend (separate terminal). Use localhost, NOT 127.0.0.1 (CORS).
+# 2. Frontend (separate terminal). Serves the landing on :5173.
 cd frontend && npm install && npm run dev # http://localhost:5173
 ```
+
+The backend's CORS allow-list covers localhost/127.0.0.1 on :5173 (Vite), :4173
+(`vite preview`), and :5500 (VS Code Live Server on `frontend/dist/`). For any
+other origin, set `TIR_ALLOWED_ORIGINS` (comma-separated) on the backend.
 
 The dev server serves the **ChaturVyuha standalone landing** at `/` (cinematic
 hero + a working upload wired to the backend). See

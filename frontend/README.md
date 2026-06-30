@@ -16,9 +16,15 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-The backend must be running at `API_BASE` (default `http://localhost:8000`) and
-its CORS is locked to `http://localhost:5173` — use **`localhost`**, not
-`127.0.0.1`, or the browser will block the responses.
+The backend must be running at `API_BASE` (default `http://localhost:8000`). Its
+CORS allow-list covers the usual local origins — Vite (`5173`), `vite preview`
+(`4173`), and VS Code Live Server (`5500`) on both `localhost` and `127.0.0.1`.
+If you serve the site from a different host/port, add it via the backend's
+`TIR_ALLOWED_ORIGINS` env var (comma-separated), or the browser will block the
+upload.
+
+You can also open the built site with any static server, e.g. VS Code Live
+Server on `frontend/dist/` (that's the `127.0.0.1:5500` case, already allowed).
 
 > The bundle inlines its own assets but still loads React + fonts from a CDN at
 > runtime, so it needs internet to render.
